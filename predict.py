@@ -36,14 +36,13 @@ def preprocess_comp(df, keep_cols: list,fill_null_vals:dict):
     return imputed_df
 
 
-def run_xgboost(model, test_df, scaler,stat_cols,sepsis_mode):
+def run_xgboost(model, test_df, scaler,stat_cols):
     """
     runs a pretrained xgboost model on test data and creates a prediction csv
     :param model: path to json file holding data about pre trained xgboost model
     :param test_df: dataframe holding preprocessed test data
     :param scaler: fit scaling object
     :param stat_cols: names of static columns
-    :param sepsis_mode: boolean - sepsislabel col is in data or not
     """
     xgb = XGBClassifier()
     xgb.load_model(model)
@@ -54,11 +53,7 @@ def run_xgboost(model, test_df, scaler,stat_cols,sepsis_mode):
     scaled_df = aggregated_test.copy()
     scaled_df["ICULOS_scaled"] = scaled_df["ICULOS"]
     scaled_df[scaler.feature_names_in_] = scaler.transform(scaled_df[scaler.feature_names_in_])
-    if sepsis_mode:
-        X_test = scaled_df.drop(["SepsisLabel","ICULOS"], axis=1)
-    else:
-        X_test = scaled_df.drop( "ICULOS", axis=1)
-
+    X_test = scaled_df.drop(["SepsisLabel","ICULOS"], axis=1)
     cols= xgb.get_booster().feature_names
     predicted = xgb.predict(X_test[cols])
     scaled_df["prediction"] = predicted
@@ -74,7 +69,6 @@ if __name__ == '__main__':
 
     test_dir = sys.argv[1]
     test_df = preprocess.create_data(test_dir,"")
-    sep_mode = "SepsisLabel" in test_df.columns
     # loading pre trained scaler and null values
     with open('null_vals_imputation.pkl', 'rb') as f:
         null_vals_dict = pickle.load(f)
@@ -85,11 +79,9 @@ if __name__ == '__main__':
     keep_cols = "HR,O2Sat,Temp,SBP,MAP,Resp,BUN,Calcium,Creatinine,Glucose,Magnesium,Hct,Hgb,WBC,Age,Gender,ICULOS,SepsisLabel,patient_id,age_group".split(",")
 
     stat_cols = ["age_group", "Gender", "ICULOS", "SepsisLabel"]
-    if not sep_mode:
-        keep_cols.remove("SepsisLabel")
-        stat_cols.remove("SepsisLabel")
+
 
     #preprocessing
     test_df = preprocess_comp(test_df,keep_cols=keep_cols,fill_null_vals=null_vals_dict)
     #run model
-    run_xgboost("xgboost_final_model.json",test_df=test_df,scaler=scaler,stat_cols=stat_cols,sepsis_mode=sep_mode)
+    run_xgboost("xgboost_final_model.json",test_df=test_df,scaler=scaler,stat_cols=stat_cols)
