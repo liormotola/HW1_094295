@@ -13,8 +13,8 @@ The models are
  </ul>
  This Reopsitory contains the following files:
  <ul>
-  <li> **data_exploration.py** - this holds the code of all data exploration we performed over the data  </li>
-  <li> **preprocess.py** - preprocessing of the data </li>
+  - data_exploration.py - this holds the code of all data exploration we performed over the data 
+  <li> preprocess.py** - preprocessing of the data </li>
   <li> **Model files** = [`Xgboost_model.py`, `random_forest_model.py`, `Adaboost_model.py`] - For each model there is a seperate python file containing all of the model's process -
     training, testing, hyperparameter tuning, and post analysis.<br> In the post analysis part we left only the code we eventually used and not all of our experiments.
   </li>
