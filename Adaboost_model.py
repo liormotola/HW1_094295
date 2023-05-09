@@ -37,9 +37,9 @@ def adaboost_weighted_mean(train_df, test_df, stat_cols, n=0):
     scaled_df_test = aggregated_test.copy()
     scaled_df_test[scaling_cols] = scaler.transform(scaled_df_test[scaling_cols])
 
-    X_train = scaled_df.drop("SepsisLabel", axis=1)
+    X_train = scaled_df.drop(["SepsisLabel","ICULOS","patient_id"], axis=1)
     y_train = scaled_df.SepsisLabel
-    X_test = scaled_df_test.drop("SepsisLabel", axis=1)
+    X_test = scaled_df_test.drop(["SepsisLabel","ICULOS","patient_id"], axis=1)
     y_test = scaled_df_test.SepsisLabel
 
     adaboost = AdaBoostClassifier(n_estimators=170, random_state=0)
@@ -83,9 +83,9 @@ def adaboost_reg_mean(train_df, test_df, stat_cols, n=0):
     scaled_df_test["ICULOS_scaled"] = scaled_df_test.ICULOS
     scaled_df_test[scaling_cols] = scaler.transform(scaled_df_test[scaling_cols])
 
-    X_train = scaled_df.drop(["SepsisLabel","ICULOS"], axis=1)
+    X_train = scaled_df.drop(["SepsisLabel","ICULOS","patient_id"], axis=1)
     y_train = scaled_df.SepsisLabel
-    X_test = scaled_df_test.drop(["SepsisLabel","ICULOS"], axis=1)
+    X_test = scaled_df_test.drop(["SepsisLabel","ICULOS","patient_id"], axis=1)
     y_test = scaled_df_test.SepsisLabel
 
     adaboost = AdaBoostClassifier(n_estimators=170, random_state=0)
@@ -116,10 +116,10 @@ def adaboost_reg_mean_parameter_tuning(train_df , stat_cols, n=0):
 
     aggregated_train = utils.aggregate_df_reg_mean(stat_cols, scaling_cols, train_df)
     scaler = StandardScaler()
-
+    scaling_cols += ["ICULOS"]
     scaled_df = aggregated_train.copy()
     scaled_df[scaling_cols] = scaler.fit_transform(scaled_df[scaling_cols])
-    X_train = scaled_df.drop("SepsisLabel", axis=1)
+    X_train = scaled_df.drop(["SepsisLabel","patient_id"], axis=1)
     y_train = scaled_df.SepsisLabel
 
     print("starting searching")

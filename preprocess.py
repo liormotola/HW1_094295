@@ -56,10 +56,11 @@ def preprocess_train_data(csv_file, keep_cols: list):
     # bfill = backward fill = if there are no previous records so we will take from later records
     imputed_df= patients_grouped_df.apply(lambda row: row.ffill().bfill())
     df = imputed_df.copy()
+    df.drop("patient_id", axis=1,inplace=True)
     grouped_df = df.groupby(["age_group", "Gender"])
-    cols = list(set(df.columns).difference({"age_group", "Gender", "SepsisLabel"}))
+    cols = list(set(df.columns).difference({"age_group", "Gender", "SepsisLabel","patient_id"}))
     df[cols] = grouped_df[cols].transform(lambda x: x.fillna(x.mean()))
-    df = df.drop("patient_id", axis=1).reset_index().drop("level_1",axis=1)
+    df = df.reset_index().drop("level_1",axis=1)
 
     return df , grouped_df.mean()
 
