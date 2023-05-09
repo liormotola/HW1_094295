@@ -32,5 +32,5 @@ In this project we trained 3 different models trying to achive best f1 score ove
 
 ### Reproduce results
 #### predict.py
-This will use our best pretrained model - `xgboost_final_model.json` to predict sepsislabel over new data.
+This will use our best pretrained model - `xgboost_final_model.json` to predict sepsis-label over new data.<br>
 Should get as an argument path to the test data
