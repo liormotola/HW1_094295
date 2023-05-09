@@ -19,7 +19,7 @@ In this project we trained 3 different models trying to achive best f1 score ove
   * `data_exploration.py` - this holds the code of all data exploration we performed over the train data.To use it you should send it a csv holding all data merged together. To create such csv you can use the `create_data` function in  `preprocess.py`. 
   * `preprocess.py` - preprocessing of the data. 
   * **Model files** = [`Xgboost_model.py`, `random_forest_model.py`, `Adaboost_model.py`] - For each model there is a seperate python file containing all of the model's process -
-    training, testing, hyperparameter tuning, and post analysis.<br> In the post analysis part we left only the code we eventually used and not all of our experiments.
+    training, testing, hyperparameter tuning, and post analysis.<br> In the post analysis part we left only the code we eventually used and not all of our experiments. This code assumes training data is in a directory data/train .
   * `utils.py` - util functions used in all models.
   * All of the trained models which achieved best results - `adaboost_final_model.pkl` , `rf_final_model.pkl`, `xgboost_final_model.json`
 
