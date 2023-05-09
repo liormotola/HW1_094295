@@ -1,11 +1,35 @@
+import re
 import pandas as pd
 import os
 from tqdm import tqdm
 import sys
 import pickle
+import utils
+import preprocess
+from sklearn.metrics import f1_score
+from xgboost import XGBClassifier
 
 
-def create_data(dir_path):
+def create_patient_df(psv_file):
+    df = pd.read_csv(psv_file, delimiter="|")
+
+    if "SepsisLabel" in df.columns:
+        patient_id = psv_file.split("patient_")[-1].strip(".psv")
+        df["patient_id"] = [patient_id] * len(df)
+        df["match"] = df.SepsisLabel != df.SepsisLabel.shift()
+        if len(df[df["match"]]) == 2:
+            shift_index = df[df["match"]].index[-1]
+            df = df[df.index <= shift_index]
+        elif df["SepsisLabel"][0] ==1:
+            df = df[df.index <= 0]
+
+        df.drop(columns=["match"], inplace=True)
+
+    return df
+
+
+
+def create_data(dir_path,csv_name):
     patient_files = os.listdir(dir_path)
     first_patient = os.path.join(dir_path,patient_files[0])
     final_df = create_patient_df(first_patient)
@@ -14,25 +38,13 @@ def create_data(dir_path):
         p_df = create_patient_df(patient_file)
         final_df = pd.concat([final_df,p_df])
 
+    if csv_name:
+        final_df.to_csv(csv_name, index=False)
     return final_df
 
-def create_patient_df(psv_file):
-    df = pd.read_csv(psv_file, delimiter="|")
-    patient_id = psv_file.split("patient_")[-1].strip(".psv")
-    df["patient_id"] = [patient_id] * len(df)
-    df["match"] = df.SepsisLabel != df.SepsisLabel.shift()
-    if len(df[df["match"]]) == 2:
-        shift_index = df[df["match"]].index[-1]
-        df = df[df.index <= shift_index]
-    elif df["SepsisLabel"][0] ==1:
-        df = df[df.index <= 0]
 
 
-    df.drop(columns=["match"], inplace=True)
-    return df
-
-
-def preprocess_test(df, keep_cols: list,fill_null_vals:dict):
+def preprocess_comp(df, keep_cols: list,fill_null_vals:dict):
 
     # dropping irrelevant cols
     drop_cols = list(set(df.columns).difference(set(keep_cols)))
@@ -54,44 +66,54 @@ def preprocess_test(df, keep_cols: list,fill_null_vals:dict):
 
     return imputed_df
 
-def last_n_rows(group, n=10):
-    return group.tail(n)
 
-def aggregate_df_reg_mean(stat_cols, dynamic_cols, initial_df):
+def run_xgboost(model, test_df, scaler,stat_cols,sepsis_mode):
+    xgb = XGBClassifier()
+    xgb.load_model(model)
 
-    grouped_by_patient_df = initial_df.groupby("patient_id")
-    aggregated_df_stat = grouped_by_patient_df[stat_cols].max()
-    aggregated_df_dynamic = grouped_by_patient_df[dynamic_cols].mean()
-    final_aggregated_df = aggregated_df_stat.join(aggregated_df_dynamic, on="patient_id")
-
-    return final_aggregated_df
-
-
-def run_xgboost(model, test_df, scaler,stat_cols):
-    test_df = test_df.groupby('patient_id').apply(last_n_rows, n=10).reset_index(drop=True)
+    test_df = test_df.groupby('patient_id').apply(utils.last_n_rows, n=10).reset_index(drop=True)
     scaling_cols = list(set(test_df.columns).difference(set(stat_cols + ["patient_id", "Age"])))
-    aggregated_test = aggregate_df_reg_mean(stat_cols, scaling_cols, test_df)
+    aggregated_test = utils.aggregate_df_reg_mean(stat_cols, scaling_cols, test_df)
     scaled_df = aggregated_test.copy()
-    scaled_df[scaling_cols] = scaler.transform(scaled_df[scaling_cols])
-    X_test = scaled_df.drop("SepsisLabel", axis=1)
-    y_test = scaled_df.SepsisLabel
-    predicted = model.predict(X_test)
+    scaled_df["ICULOS_scaled"] = scaled_df["ICULOS"]
+    scaled_df[scaler.feature_names_in_] = scaler.transform(scaled_df[scaler.feature_names_in_])
+    if sepsis_mode:
+        X_test = scaled_df.drop(["SepsisLabel","ICULOS"], axis=1)
+        y_test = scaled_df.SepsisLabel
+    else:
+        X_test = scaled_df.drop( "ICULOS", axis=1)
 
+    cols= xgb.get_booster().feature_names
+    predicted = xgb.predict(X_test[cols])
+    scaled_df["prediction"] = predicted
+    prediction_df = scaled_df[["patient_id","prediction" ]]
+    prediction_df.rename(columns={"patient_id": "id"},inplace=True)
+    prediction_df["id_num"] = prediction_df["id"].apply(lambda x: int(re.findall(r"\d+",x)[-1]))
+    prediction_df.sort_values(by= "id_num",inplace=True)
+    prediction_df.drop("id_num",axis=1,inplace=True)
+    prediction_df.to_csv("prediction.csv",index=False)
+    #TODO delete
+    print(f1_score(y_test,predicted))
 
 if __name__ == '__main__':
 
     test_dir = sys.argv[1]
-    test_df = create_data(test_dir)
-
-    with open('model.pkl', 'rb') as f:
-        model = pickle.load(f)
-
-    with open('backup/null_vals.pkl', 'rb') as f:
+    test_df = preprocess.create_data(test_dir,"")
+    sep_mode = "SepsisLabel" in test_df.columns
+    with open('null_vals_imputation.pkl', 'rb') as f:
         null_vals_dict = pickle.load(f)
 
-    with open('backup/scaler.pkl', 'rb') as f:
+    with open('scaler.pkl', 'rb') as f:
         scaler = pickle.load(f)
 
     keep_cols = "HR,O2Sat,Temp,SBP,MAP,Resp,BUN,Calcium,Creatinine,Glucose,Magnesium,Hct,Hgb,WBC,Age,Gender,ICULOS,SepsisLabel,patient_id,age_group".split(",")
 
-    test_df = preprocess_test(test_df,keep_cols=keep_cols,fill_null_vals=null_vals_dict)
+    stat_cols = ["age_group", "Gender", "ICULOS", "SepsisLabel"]
+    if not sep_mode:
+        keep_cols.remove("SepsisLabel")
+        stat_cols.remove("SepsisLabel")
+
+    test_df = preprocess_comp(test_df,keep_cols=keep_cols,fill_null_vals=null_vals_dict)
+
+
+    run_xgboost("xgboost_final_model.json",test_df=test_df,scaler=scaler,stat_cols=stat_cols,sepsis_mode=sep_mode)

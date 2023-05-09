@@ -30,7 +30,7 @@ def aggregate_df_reg_mean(stat_cols, dynamic_cols, initial_df):
     aggregated_df_dynamic = grouped_by_patient_df[dynamic_cols].mean()
     final_aggregated_df = aggregated_df_stat.join(aggregated_df_dynamic, on="patient_id")
 
-    return final_aggregated_df
+    return final_aggregated_df.reset_index()
 
 def model_eval(true_labels, predicted_labels,set_type : str,title:str):
     acc= accuracy_score(true_labels, predicted_labels)

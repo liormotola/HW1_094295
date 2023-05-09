@@ -1,4 +1,4 @@
-from preprocess import preprocess_train_data , preprocess_test
+from preprocess import preprocess_train_data, preprocess_test
 import utils
 import pandas as pd
 from sklearn.metrics import f1_score
@@ -94,12 +94,19 @@ def xgboost_reg_mean(train_df, test_df , stat_cols, n=0):
 
 
 def xgboost_reg_mean_parameter_tuning(train_df , stat_cols, n=0):
+    """
+    Tuning parameters for xgboost model with mean aggregation over n last rows
+    :param train_df: train data
+    :param stat_cols: static columns - not to be aggregated by mean
+    :param n: number of rows to take into account
+    :return: prints best parameters found
+    """
 
     if n > 0 :
         train_df = train_df.groupby('patient_id').apply(utils.last_n_rows, n=n).reset_index(drop=True)
 
     scaling_cols = list(set(train_df.columns).difference(set(stat_cols + ["patient_id", "Age"])))
-
+    scaling_cols += ["ICULOS"]
     aggregated_train = utils.aggregate_df_reg_mean(stat_cols, scaling_cols, train_df)
     scaler = StandardScaler()
 
@@ -133,6 +140,11 @@ def xgboost_reg_mean_parameter_tuning(train_df , stat_cols, n=0):
     df_optimizer.to_csv("params_xgboost.csv")
 
 def plot_xgb_importance(model,importance_type):
+    """
+    plots importance graphs of xgboost object (trained model)
+    :param model: trained xgboost object
+    :param importance_type: gain/cover/weight
+    """
     plot_importance(model, importance_type=importance_type)
     plt.title(f"xgboost importance plot - {importance_type}")
     plt.savefig(f"xgboost importance plot - {importance_type}")
@@ -173,6 +185,7 @@ def main():
     test_df = preprocess_test("test_data_merged_final.csv", keep_cols, val_dict)
     stat_cols = ["age_group", "Gender", "ICULOS", "SepsisLabel"]
     model, predicted_df = xgboost_reg_mean(train_df=initial_df, test_df=test_df, stat_cols=stat_cols, n=10)
+    #saving results to csv for post analysis
     predicted_df.to_csv("predicted_test_df_xgboost_new.csv")
     model.save_model('xgboost_final_model_new.json')
 

@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 def create_patient_df(psv_file):
     df = pd.read_csv(psv_file, delimiter="|")
-    patient_id = psv_file.split("patient_")[-1].strip(".psv")
+    patient_id = os.path.basename(psv_file).rstrip(".psv")
     df["patient_id"] = [patient_id] * len(df)
     df["match"] = df.SepsisLabel != df.SepsisLabel.shift()
     if len(df[df["match"]]) == 2:
@@ -25,7 +25,8 @@ def create_data(dir_path,csv_name):
         p_df = create_patient_df(patient_file)
         final_df = pd.concat([final_df,p_df])
 
-    final_df.to_csv(csv_name, index=False)
+    if csv_name:
+        final_df.to_csv(csv_name, index=False)
     return final_df
 
 def preprocess_train_data(csv_file, keep_cols: list):
@@ -72,8 +73,3 @@ def preprocess_test(csv_file, keep_cols: list,fill_null_vals:dict):
     imputed_df = imputed_df.drop("patient_id", axis=1).reset_index().drop("level_1", axis=1)
 
     return imputed_df
-
-if __name__ == '__main__':
-    dir = "data/test"
-    # df = pd.read_csv(os.path.join(dir,"patient_16068.psv"), delimiter="|")
-    create_data(dir,csv_name="test_data_merged_final.csv")
