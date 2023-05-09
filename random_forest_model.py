@@ -123,6 +123,9 @@ def post_analysis(model, predicted_df):
 def main():
     if not os.path.isfile("all_data_merged_final.csv"):
        create_data("data/train","all_data_merged_final.csv")
+    # create_test_data for the first time
+    if not os.path.isfile("test_data_merged_final.csv"):
+        create_data("data/test","test_data_merged_final.csv")
 
     keep_cols = "HR,O2Sat,Temp,SBP,MAP,Resp,BUN,Calcium,Creatinine,Glucose," \
                 "Magnesium,Hct,Hgb,WBC,Age,Gender,ICULOS,SepsisLabel,patient_id,age_group".split(",")
