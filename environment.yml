@@ -1,0 +1,13 @@
+name: hw1_env
+dependencies:
+  - python
+  - pip
+  - pip:
+    - catboost==1.2
+    - matplotlib==3.7.1
+    - numpy==1.24.2
+    - pandas==2.0.0
+    - scikit-learn==1.2.2
+    - tqdm==4.65.0
+    - xgboost==1.7.5
+    - seaborn==0.12.2
