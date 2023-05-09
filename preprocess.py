@@ -3,6 +3,11 @@ import os
 from tqdm import tqdm
 
 def create_patient_df(psv_file):
+    """
+    creates a pandas df from one psv file, deleting irrelevant rows
+    :param psv_file: path of psv file to parse
+    :return: dataframe fromt he psv without irrelevant rows
+    """
     df = pd.read_csv(psv_file, delimiter="|")
     patient_id = os.path.basename(psv_file).rstrip(".psv")
     df["patient_id"] = [patient_id] * len(df)
@@ -17,6 +22,13 @@ def create_patient_df(psv_file):
     return df
 
 def create_data(dir_path,csv_name):
+    """
+    merging all psv files into one large dataframe and saves to csv file if given
+    :param dir_path: path to data directory
+    :param csv_name: name of the csv to save. if an empty string will not save to csv file
+    :return:  the merged dataframe
+    """
+    print("reading data\n")
     patient_files = os.listdir(dir_path)
     first_patient = os.path.join(dir_path,patient_files[0])
     final_df = create_patient_df(first_patient)

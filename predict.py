@@ -1,50 +1,19 @@
 import re
 import pandas as pd
-import os
-from tqdm import tqdm
 import sys
 import pickle
 import utils
 import preprocess
-from sklearn.metrics import f1_score
 from xgboost import XGBClassifier
 
-
-def create_patient_df(psv_file):
-    df = pd.read_csv(psv_file, delimiter="|")
-
-    if "SepsisLabel" in df.columns:
-        patient_id = psv_file.split("patient_")[-1].strip(".psv")
-        df["patient_id"] = [patient_id] * len(df)
-        df["match"] = df.SepsisLabel != df.SepsisLabel.shift()
-        if len(df[df["match"]]) == 2:
-            shift_index = df[df["match"]].index[-1]
-            df = df[df.index <= shift_index]
-        elif df["SepsisLabel"][0] ==1:
-            df = df[df.index <= 0]
-
-        df.drop(columns=["match"], inplace=True)
-
-    return df
-
-
-
-def create_data(dir_path,csv_name):
-    patient_files = os.listdir(dir_path)
-    first_patient = os.path.join(dir_path,patient_files[0])
-    final_df = create_patient_df(first_patient)
-    for patient in tqdm(patient_files[1:]):
-        patient_file = os.path.join(dir_path,patient)
-        p_df = create_patient_df(patient_file)
-        final_df = pd.concat([final_df,p_df])
-
-    if csv_name:
-        final_df.to_csv(csv_name, index=False)
-    return final_df
-
-
-
 def preprocess_comp(df, keep_cols: list,fill_null_vals:dict):
+    """
+    preforms preprocessing to the data - dropping columns, filling nulls
+    :param df: pandas dataframe holding all data
+    :param keep_cols: columns to keep
+    :param fill_null_vals: dictionary with the values to use to fill nulls in each column
+    :return: processed df
+    """
 
     # dropping irrelevant cols
     drop_cols = list(set(df.columns).difference(set(keep_cols)))
@@ -68,6 +37,14 @@ def preprocess_comp(df, keep_cols: list,fill_null_vals:dict):
 
 
 def run_xgboost(model, test_df, scaler,stat_cols,sepsis_mode):
+    """
+    runs a pretrained xgboost model on test data and creates a prediction csv
+    :param model: path to json file holding data about pre trained xgboost model
+    :param test_df: dataframe holding preprocessed test data
+    :param scaler: fit scaling object
+    :param stat_cols: names of static columns
+    :param sepsis_mode: boolean - sepsislabel col is in data or not
+    """
     xgb = XGBClassifier()
     xgb.load_model(model)
 
@@ -79,7 +56,6 @@ def run_xgboost(model, test_df, scaler,stat_cols,sepsis_mode):
     scaled_df[scaler.feature_names_in_] = scaler.transform(scaled_df[scaler.feature_names_in_])
     if sepsis_mode:
         X_test = scaled_df.drop(["SepsisLabel","ICULOS"], axis=1)
-        y_test = scaled_df.SepsisLabel
     else:
         X_test = scaled_df.drop( "ICULOS", axis=1)
 
@@ -92,14 +68,14 @@ def run_xgboost(model, test_df, scaler,stat_cols,sepsis_mode):
     prediction_df.sort_values(by= "id_num",inplace=True)
     prediction_df.drop("id_num",axis=1,inplace=True)
     prediction_df.to_csv("prediction.csv",index=False)
-    #TODO delete
-    print(f1_score(y_test,predicted))
+
 
 if __name__ == '__main__':
 
     test_dir = sys.argv[1]
     test_df = preprocess.create_data(test_dir,"")
     sep_mode = "SepsisLabel" in test_df.columns
+    # loading pre trained scaler and null values
     with open('null_vals_imputation.pkl', 'rb') as f:
         null_vals_dict = pickle.load(f)
 
@@ -113,7 +89,7 @@ if __name__ == '__main__':
         keep_cols.remove("SepsisLabel")
         stat_cols.remove("SepsisLabel")
 
+    #preprocessing
     test_df = preprocess_comp(test_df,keep_cols=keep_cols,fill_null_vals=null_vals_dict)
-
-
+    #run model
     run_xgboost("xgboost_final_model.json",test_df=test_df,scaler=scaler,stat_cols=stat_cols,sepsis_mode=sep_mode)

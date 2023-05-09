@@ -1,4 +1,5 @@
-from preprocess import preprocess_train_data , preprocess_test
+from preprocess import preprocess_train_data , preprocess_test,create_data
+import os
 import utils
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
@@ -8,6 +9,14 @@ import pickle
 from sklearn.metrics import f1_score
 
 def rf_reg_mean(train_df, test_df , stat_cols, n=0):
+    """
+    train+test random forest model with regular mean aggregation
+    :param train_df: train data
+    :param test_df: test data
+    :param stat_cols: static columns - not to be aggregated by mean
+    :param n: number of rows to take into account in aggregation
+    :return: trained model + test df including predictions
+    """
 
     if n > 0 :
         train_df = train_df.groupby('patient_id').apply(utils.last_n_rows, n=n).reset_index(drop=True)
@@ -47,6 +56,13 @@ def rf_reg_mean(train_df, test_df , stat_cols, n=0):
     return rf , scaled_df_test
 
 def rf_reg_mean_parameter_tuning(train_df , stat_cols, n=0):
+    """
+    Tuning parameters for random forest model with mean aggregation over n last rows
+    :param train_df: train data
+    :param stat_cols: static columns - not to be aggregated by mean
+    :param n: number of rows to take into account
+    :return: prints the best parameters found
+    """
 
     if n > 0 :
         train_df = train_df.groupby('patient_id').apply(utils.last_n_rows, n=n).reset_index(drop=True)
@@ -81,6 +97,12 @@ def rf_reg_mean_parameter_tuning(train_df , stat_cols, n=0):
 
 
 def post_analysis(model, predicted_df):
+    """
+    runs post analysis on the model
+    :param model: path to pre trained model
+    :param predicted_df: dataframe of all data + predictions
+
+    """
     with open(model, 'rb') as f:
         rf = pickle.load(f)
     # check feature importance
@@ -99,6 +121,8 @@ def post_analysis(model, predicted_df):
     utils.Temp_analysis(predicted_df=predicted_df)
 
 def main():
+    if not os.path.isfile("all_data_merged_final.csv"):
+       create_data("data/train","all_data_merged_final.csv")
 
     keep_cols = "HR,O2Sat,Temp,SBP,MAP,Resp,BUN,Calcium,Creatinine,Glucose," \
                 "Magnesium,Hct,Hgb,WBC,Age,Gender,ICULOS,SepsisLabel,patient_id,age_group".split(",")

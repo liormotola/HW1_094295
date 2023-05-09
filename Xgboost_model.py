@@ -1,3 +1,5 @@
+import os
+import preprocess
 from preprocess import preprocess_train_data, preprocess_test
 import utils
 import pandas as pd
@@ -9,6 +11,14 @@ import pickle
 import matplotlib.pyplot as plt
 
 def xgboost_weighted_mean(train_df, test_df, stat_cols, n=0):
+    """
+    train+test xgboost model with weighted mean aggregation over n rows
+    :param train_df: train data
+    :param test_df: test data
+    :param stat_cols: static columns - not to be aggregated by mean
+    :param n: number of rows to take into account in aggregation
+    :return: trained model + test df including predictions
+    """
     if n > 0:
         train_df = train_df.groupby('patient_id').apply(utils.last_n_rows, n=n).reset_index(drop=True)
         test_df = test_df.groupby('patient_id').apply(utils.last_n_rows, n=n).reset_index(drop=True)
@@ -48,6 +58,14 @@ def xgboost_weighted_mean(train_df, test_df, stat_cols, n=0):
 
 
 def xgboost_reg_mean(train_df, test_df , stat_cols, n=0):
+    """
+    train+test xgboost model with mean aggregation over n rows
+    :param train_df: train data
+    :param test_df: test data
+    :param stat_cols: static columns - not to be aggregated by mean
+    :param n: number of rows to take into account in aggregation
+    :return: trained model + test df including predictions
+    """
 
     if n > 0 :
         train_df = train_df.groupby('patient_id').apply(utils.last_n_rows, n=n).reset_index(drop=True)
@@ -99,7 +117,7 @@ def xgboost_reg_mean_parameter_tuning(train_df , stat_cols, n=0):
     :param train_df: train data
     :param stat_cols: static columns - not to be aggregated by mean
     :param n: number of rows to take into account
-    :return: prints best parameters found
+    :return: prints the best parameters found
     """
 
     if n > 0 :
@@ -151,6 +169,11 @@ def plot_xgb_importance(model,importance_type):
     plt.show()
 
 def post_analysis(model,predicted_df):
+    """
+    runs post analysis on the model
+    :param model: path to pre trained model
+    :param predicted_df: dataframe of all data + predictions
+    """
     #we left only the code we eventually used
     xgb = XGBClassifier()
     xgb.load_model(model)
@@ -172,6 +195,9 @@ def post_analysis(model,predicted_df):
         print(f1_score(df1.SepsisLabel, df1.predicted))
 
 def main():
+    #create_train_data for the first time
+    if not os.path.isfile("all_data_merged_final.csv"):
+        preprocess.create_data("data/train","all_data_merged_final.csv")
 
     keep_cols = "HR,O2Sat,Temp,SBP,MAP,Resp,BUN,Calcium,Creatinine,Glucose," \
                 "Magnesium,Hct,Hgb,WBC,Age,Gender,ICULOS,SepsisLabel,patient_id,age_group".split(",")
@@ -195,5 +221,5 @@ if __name__ == '__main__':
 
     #post analysis
     test_df_predicted = pd.read_csv("predicted_test_df_xgboost_new.csv")
-    model_name = "xgboost_final_model_new.json"
+    model_name = "xgboost_final_model.json"
     post_analysis(model_name,test_df_predicted)

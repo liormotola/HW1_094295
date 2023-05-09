@@ -1,4 +1,4 @@
-from preprocess import preprocess_train_data , preprocess_test
+from preprocess import preprocess_train_data , preprocess_test,create_data
 import utils
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
@@ -6,9 +6,18 @@ from sklearn.model_selection import GridSearchCV
 import pickle
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.metrics import f1_score
+import os
 
 
 def adaboost_weighted_mean(train_df, test_df, stat_cols, n=0):
+    """
+     train+test adaboost model with weighted mean aggregation over n rows
+    :param train_df: train data
+    :param test_df: test data
+    :param stat_cols: static columns - not to be aggregated by mean
+    :param n: number of rows to take into account in aggregation
+    :return: trained model + test df including predictions
+    """
     if n > 0:
         train_df = train_df.groupby('patient_id').apply(utils.last_n_rows, n=n).reset_index(drop=True)
         test_df = test_df.groupby('patient_id').apply(utils.last_n_rows, n=n).reset_index(drop=True)
@@ -47,6 +56,14 @@ def adaboost_weighted_mean(train_df, test_df, stat_cols, n=0):
 
 
 def adaboost_reg_mean(train_df, test_df, stat_cols, n=0):
+    """
+     train+test adaboost model with mean aggregation over n rows
+    :param train_df: train data
+    :param test_df: test data
+    :param stat_cols: static columns - not to be aggregated by mean
+    :param n: number of rows to take into account in aggregation
+    :return: trained model + test df including predictions
+    """
     if n > 0:
         train_df = train_df.groupby('patient_id').apply(utils.last_n_rows, n=n).reset_index(drop=True)
         test_df = test_df.groupby('patient_id').apply(utils.last_n_rows, n=n).reset_index(drop=True)
@@ -85,7 +102,13 @@ def adaboost_reg_mean(train_df, test_df, stat_cols, n=0):
     return adaboost, scaled_df_test
 
 def adaboost_reg_mean_parameter_tuning(train_df , stat_cols, n=0):
-
+    """
+    hyper parameter tuning for adaboost model with mean aggregation over n last rows
+    :param train_df: train data
+    :param stat_cols: static columns - not to be aggregated by mean
+    :param n: number of rows to take into account
+    :return: prints the best parameters found
+    """
     if n > 0 :
         train_df = train_df.groupby('patient_id').apply(utils.last_n_rows, n=n).reset_index(drop=True)
 
@@ -119,7 +142,9 @@ def adaboost_reg_mean_parameter_tuning(train_df , stat_cols, n=0):
 
 
 def main():
-
+    #create_train_data for the first time
+    if not os.path.isfile("all_data_merged_final.csv"):
+        create_data("data/train","all_data_merged_final.csv")
     keep_cols = "HR,O2Sat,Temp,SBP,MAP,Resp,BUN,Calcium,Creatinine,Glucose," \
                 "Magnesium,Hct,Hgb,WBC,Age,Gender,ICULOS,SepsisLabel,patient_id,age_group".split(",")
 
@@ -134,6 +159,12 @@ def main():
         pickle.dump(model, f)
 
 def post_analysis(model,predicted_df):
+    """
+    runs post analysis on the model
+    :param model: path to pre trained model
+    :param predicted_df: dataframe of all data + predictions
+    :return:
+    """
     with open(model,"rb") as f:
         adaboost = pickle.load(f)
 
@@ -154,9 +185,9 @@ def post_analysis(model,predicted_df):
 
 if __name__ == '__main__':
     # train model
-    # main()
+    main()
 
     # post analysis
     test_df_predicted = pd.read_csv("predicted_test_df_adaboost_new.csv")
-    model_name = "adaboost_final_model_new.pkl"
+    model_name = "adaboost_final_model.pkl"
     post_analysis(model_name, test_df_predicted)
